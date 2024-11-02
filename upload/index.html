@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<style>
+  .upload-wrapper {
+    margin-top: 20px;
+  }
+</style>
+
+<body>
+
+  <h2>Upload Image to GitHub</h2>
+
+  <div>
+    <label>Token</label>
+    <input type="text" placeholder="请输入 Token" id="token" value="" />
+  </div>
+  <div>
+    <label>Username</label>
+    <input type="text" placeholder="请输入 Username" id="username" value="careteenL" />
+  </div>
+  <div>
+    <label>Repo</label>
+    <input type="text" placeholder="请输入 Repo" id="repo" value="images" />
+  </div>
+  <div>
+    <label>Branch</label>
+    <input type="text" placeholder="请输入 Branch" id="branch" value="master" />
+  </div>
+  <div>
+    <label>Path</label>
+    <input type="text" placeholder="请输入 Path" id="path" value="script" />
+  </div>
+
+  <div>
+    https://raw.githubusercontent.com/careteenL/images/master/script/image_1730534337847.jpg
+  </div>
+
+  <div class="upload-wrapper">
+    <input type="file" id="fileInput">
+    <button onclick="uploadImage()">Upload</button>
+  </div>
+
+
+  <!-- 添加用于显示URLs的元素 -->
+  <div>预览地址将在下方显示 ------ ></div>
+  <div id="originalUrl" style="margin-top: 20px;"></div>
+  <div id="cdnUrl" style="margin-top: 10px;"></div>
+
+  <script>
+    const token = document.getElementById("token").value;
+    const username = document.getElementById("username").value;
+    const repo = document.getElementById("repo").value;
+    const branch = document.getElementById("branch").value;
+    const pathPrefix = document.getElementById("path").value;
+    function uploadImage() {
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("请选择文件");
+        return;
+      }
+      if (!token) {
+        alert("请输入 github token");
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onloadend = function () {
+        const content = reader.result.split(",")[1];
+        uploadToGitHub(content);
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function uploadToGitHub(content) {
+      const filename = `image_${new Date().getTime()}.jpg`; // 文件名基于当前时间戳
+      const path = `${pathPrefix}/${filename}`; // 上传的路径
+      const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}`;
+      const data = {
+        message: `feat: Uploading ${filename}`,
+        content: content,
+        branch: branch,
+      };
+
+      fetch(url, {
+        method: "PUT",
+        headers: {
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.content && data.content.download_url) {
+            const cdnUrl = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filename}`;
+            const originalUrl = data.content.download_url;
+
+            // 更新页面元素以显示URLs
+            document.getElementById(
+              "originalUrl"
+            ).innerHTML = `Original URL: <a href="${originalUrl}" target="_blank">${originalUrl}</a>`;
+            document.getElementById(
+              "cdnUrl"
+            ).innerHTML = `CDN URL: <a href="${cdnUrl}" target="_blank">${cdnUrl}</a>`;
+
+            // 自动复制CDN URL到剪贴板
+            navigator.clipboard
+              .writeText(cdnUrl)
+              .then(() => {
+                alert(`CDN URL copied to clipboard: ${cdnUrl}`);
+              })
+              .catch((err) => {
+                console.error("Could not copy text: ", err);
+                alert("Failed to copy CDN URL to clipboard.");
+              });
+          } else {
+            alert("Failed to get the image URL.");
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to upload image:", error);
+          alert("Failed to upload image.");
+        });
+    }
+
+  </script>
+</body>
+
+</html>
